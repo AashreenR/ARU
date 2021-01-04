@@ -2,9 +2,9 @@ from __future__ import print_function, division
 
 import cv2
 import random
-from page_xml.xmlPAGE import pageData
+from ARU.page_xml.xmlPAGE import pageData
 from shapely.geometry import LineString
-from utils import polyapprox as pa
+from ARU.utils import polyapprox as pa
 
 import time
 import matplotlib.pyplot as plt
@@ -14,7 +14,7 @@ import os
 
 from scipy import misc
 from skimage import io
-from pix_lab.util.util import load_graph
+from ARU.pix_lab.util.util import load_graph
 
 class Inference_pb(object):
     """
@@ -23,30 +23,32 @@ class Inference_pb(object):
         :param net: the arunet instance to train
 
         """
-    def __init__(self, path_to_pb, img_list, scale=0.33, mode='L'):
+    def __init__(self, path_to_pb, img_list, scale=0.33, mode='L',folder_path=""):
         self.graph = load_graph(path_to_pb)
         self.img_list = img_list
         self.scale = scale
         self.mode = mode
+        self.folder_path=folder_path
 
     def inference(self, print_result=True, save_result=False, gpu_device="0"):
         val_size = len(self.img_list)
         if val_size is None:
             print("No Inference Data available. Skip Inference.")
             return
-        session_conf = tf.ConfigProto()
+        session_conf = tf.compat.v1.ConfigProto()
         session_conf.gpu_options.visible_device_list = gpu_device
         
         retVal = []
         
-        with tf.Session(graph=self.graph, config=session_conf) as sess:
+        with tf.compat.v1.Session(graph=self.graph, config=session_conf) as sess:
             x = self.graph.get_tensor_by_name('inImg:0')
             predictor = self.graph.get_tensor_by_name('output:0')
             print("Start Inference")
             timeSum = 0.0
             for step in range(0, val_size):
                 aTime = time.time()
-                aImgPath = self.img_list[step]
+                aImgPathtemp = self.img_list[step]
+                aImgPath=self.folder_path+aImgPathtemp
                 print("Image: {:} ".format(aImgPath))
                 batch_x = self.load_img(aImgPath, self.scale, self.mode)
                 print(
@@ -87,7 +89,7 @@ class Inference_pb(object):
                         save_loc = os.path.join('out', str(aI)+'_'+save_name+'.jpg')
                         io.imsave(save_loc, aPred[0,:, :,aI-1])
                     '''
-                    save_loc = os.path.join('out', str(1)+'_'+save_name+'.jpg')
+                    save_loc = os.path.join('skew_temp', str(1)+'_'+save_name+'.jpg')
                     io.imsave(save_loc, aPred[0,:, :,0])
                     # print('aPred[0,:, :,0].shape:', aPred[0,:, :,0].shape)
                     print('To go on just CLOSE the current plot.')
@@ -129,7 +131,7 @@ class Inference_pb(object):
             [in_img_cols / line_mask.shape[1], in_img_rows / line_mask.shape[0]]
         )
         
-        page = pageData(os.path.join('out', id + ".xml"))
+        page = pageData(os.path.join('skew_temp', id + ".xml"))
         page.new_page(os.path.basename(in_img_path), str(in_img_rows), str(in_img_cols))
         
         kernel = np.ones((5, 5), np.uint8)
